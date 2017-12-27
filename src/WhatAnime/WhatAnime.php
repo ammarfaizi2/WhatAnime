@@ -158,15 +158,11 @@ class WhatAnime
 	private function generateVideoUrl($d)
 	{
 		$this->d = $d;
-		/*array_walk($d, function (&$d) {
-			$d = urlencode($d);
-		});*/
 		$this->videoUrl = "https://whatanime.ga/{$d['season']}/{$d['anime']}/{$d['file']}?start={$d['start']}&end={$d['end']}&token={$d['token']}";
 	}
 
 	public function getVideo()
 	{
-		var_dump($this->videoUrl);
 		if (! defined("WHATANIME_VIDEO_URL")) {
 			throw new \Exception("WHATANIME_VIDEO_URL must be defined when invoked getVideo method.", 1);
 		}
