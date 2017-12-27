@@ -37,6 +37,16 @@ class WhatAnime
 	private $hash;
 
 	/**
+	 * @var array
+	 */
+	private $d = [];
+
+	/**
+	 * @var string
+	 */
+	private $videoUrl;
+
+	/**
 	 * @param string $file
 	 * @param bool	 $isEncoded
 	 */
@@ -46,8 +56,17 @@ class WhatAnime
 			throw new \Exception("WHATANIME_DIR is not defined!", 1);
 		} else {
 			is_dir(WHATANIME_DIR) or mkdir(WHATANIME_DIR);
+			if (! is_dir(WHATANIME_DIR)) {
+				throw new \Exception("Cannot create directory ".WHATANIME_DIR, 1);
+			}
 			is_dir(WHATANIME_DIR."/cache") or mkdir(WHATANIME_DIR."/cache");
+			if (! is_dir(WHATANIME_DIR."/cache")) {
+				throw new \Exception("Cannot create directory ".WHATANIME_DIR."/cache", 1);
+			}
 			is_dir(WHATANIME_DIR."/cookies") or mkdir(WHATANIME_DIR."/cookies");
+			if (! is_dir(WHATANIME_DIR."/cookies")) {
+				throw new \Exception("Cannot create directory ".WHATANIME_DIR."/cookies", 1);
+			}
 			$this->cacheMapFile = WHATANIME_DIR."/cache_map.map";
 			if (file_exists($this->cacheMapFile)) {
 				$this->cacheMap = json_decode(file_get_contents($this->cacheMapFile), true);
@@ -131,9 +150,46 @@ class WhatAnime
 		return false;
 	}
 
-	private function generateVideoUrl()
+	private function generateVideoUrl($d)
 	{
+		// https://whatanime.ga/2014-07/PSYCHO-PASS 新編集版/[KTXP][PSYCHO-PASS Extended Edition][02][BIG5][720p][MP4].mp4?start=1061.33&end=1082.58&token=sb2EYw2FCOegH-DBSoSSww
+		$this->videoUrl = "https://whatanime.ga/{$d['season']}/{$d['anime']}/{$d['file']}?start={$d['start']}&end={$d['end']}&token={$d['token']}";
+		$this->d = $d;
+	}
 
+	private function getVideo()
+	{
+		if (! defined("WHATANIME_VIDEO_URL")) {
+			throw new \Exception("WHATANIME_VIDEO_URL must be defined when invoked getVideo method.", 1);
+		}
+		is_dir(WHATANIME_DIR."/video") or mkdir(WHATANIME_DIR."/video");
+		if (! is_dir(WHATANIME_DIR."/video")) {
+			throw new \Exception("Cannot create directory ".WHATANIME_DIR."/video", 1);
+		}
+		$extension = explode(".", $this->d['file']);
+		$this->videoFile = WHATANIME_DIR."/video/".($videoFile = $this->hash.strtolower($extension[count($extension) - 1]));
+		unset($this->file);
+		$ch = new Curl($this->videoUrl);
+		$ch->setOpt(
+			[
+				CURLOPT_COOKIEJAR	=> $this->cookieFile,
+				CURLOPT_COOKIEFILE	=> $this->cookieFile,
+				CURLOPT_USERAGENT	=> "Mozilla/5.0 (X11; Ubuntu; Linux i686; rv:56.0) Gecko/20100101 Firefox/56.0",
+				CURLOPT_HTTPHEADER	=> [
+					"Accept: video/webm,video/ogg,video/*;q=0.9,application/ogg;q=0.7,audio/*;q=0.6,*/*;q=0.5"
+				]
+			]
+		);
+		$handle = fopen($this->videoFile, "w");
+		flock($handle, LOCK_EX);
+		$data = fwrite($handle, $ch->exec());
+		fflush($handle);
+		fclose($handle);
+		if ($data > 100) {
+			return WHATANIME_VIDEO_URL."/".$videoFile;
+		} else {
+			return false;
+		}
 	}
 
 	public function exec()
