@@ -12,7 +12,7 @@ class WhatAnime
 	private $file;
 
 	/**
-	 * @var string
+	 * @var string 
 	 */
 	private $cache;
 
@@ -51,7 +51,7 @@ class WhatAnime
 			$this->cacheMapFile = WHATANIME_DIR."/cache_map.map";
 			if (file_exists($this->cacheMapFile)) {
 				$this->cacheMap = json_decode(file_get_contents($this->cacheMapFile), true);
-				$this->cacheMap = is_array($this->cacheMapFile) ? $this->cacheMapFile : [];
+				$this->cacheMap = is_array($this->cacheMap) ? $this->cacheMap : [];
 			}
 		}
 
@@ -63,12 +63,12 @@ class WhatAnime
 		}
 
 		$this->cacheFile = WHATANIME_DIR."/cache/".$this->hash;
-		$this->cookieFile = WHATANIME_DIR."/cookies/".date("M");
+		$this->cookieFile = WHATANIME_DIR."/cookies/".sha1(date("M"));
 	}
 
 	private function isCached()
 	{
-		if (isset($this->cacheMap[$this->hash]) && $this->cacheMap[$this->hash] > time() && file_exists($this->cacheFile)) {
+		if (isset($this->cacheMap[$this->hash]) && ((int)$this->cacheMap[$this->hash]) > time() && file_exists($this->cacheFile)) {
 			return true;
 		} else {
 			return false;
@@ -93,7 +93,9 @@ class WhatAnime
 					"Content-Length: ".strlen($context),
 					"Content-Type: application/x-www-form-urlencoded; charset=UTF-8",
 					"Accept: application/json, text/javascript, */*; q=0.01"
-				]
+				],
+				CURLOPT_CONNECTTIMEOUT	=> 600,
+				CURLOPT_TIMEOUT			=> 600
 			]
 		);
 		$out = $ch->exec();
@@ -101,11 +103,37 @@ class WhatAnime
 			throw new \Exception("Curl Error ({$errno}): ".$ch->error(), 1);
 		}
 		file_put_contents($this->cacheFile, $out);
+		$this->cacheMap[$this->hash] = time() + (3600 * 24 * 14);
+		file_put_contents($this->cacheMapFile, json_encode($this->cacheMap, JSON_UNESCAPED_SLASHES));
 	}
 
 	public function getCache()
 	{
 		return json_decode(file_get_contents($this->cacheFile), true);
+	}
+
+	public function getFirst()
+	{
+		if ($this->isCached()) {
+			$cache = $this->getCache();
+			if (isset($cache['docs'][0])) {
+				$this->generateVideoUrl($cache['docs'][0]);
+				return $cache['docs'][0];
+			}
+		} else {
+			$this->onlineSearch();
+			$cache = $this->getCache();
+			if (isset($cache['docs'][0])) {
+				$this->generateVideoUrl($cache['docs'][0]);
+				return $cache['docs'][0];
+			}
+		}
+		return false;
+	}
+
+	private function generateVideoUrl()
+	{
+
 	}
 
 	public function exec()
