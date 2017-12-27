@@ -174,26 +174,32 @@ class WhatAnime
 		$extension = explode(".", $this->d['file']);
 		$this->videoFile = WHATANIME_DIR."/video/".($videoFile = $this->hash.strtolower($extension[count($extension) - 1]));
 		unset($this->file);
-		$ch = new Curl($this->videoUrl);
-		$ch->setOpt(
-			[
-				CURLOPT_COOKIEJAR	=> $this->cookieFile,
-				CURLOPT_COOKIEFILE	=> $this->cookieFile,
-				CURLOPT_USERAGENT	=> "Mozilla/5.0 (X11; Ubuntu; Linux i686; rv:56.0) Gecko/20100101 Firefox/56.0",
-				CURLOPT_HTTPHEADER	=> [
-					"Accept: video/webm,video/ogg,video/*;q=0.9,application/ogg;q=0.7,audio/*;q=0.6,*/*;q=0.5"
-				]
-			]
-		);
-		$handle = fopen($this->videoFile, "w");
-		flock($handle, LOCK_EX);
-		$data = fwrite($handle, $ch->exec());
-		fflush($handle);
-		fclose($handle);
-		if ($data > 100) {
+
+		if (file_exists($this->videoFile)) {
 			return WHATANIME_VIDEO_URL."/".$videoFile;
 		} else {
-			return false;
+			$ch = new Curl($this->videoUrl);
+			$ch->setOpt(
+				[
+					CURLOPT_COOKIEJAR	=> $this->cookieFile,
+					CURLOPT_COOKIEFILE	=> $this->cookieFile,
+					CURLOPT_USERAGENT	=> "Mozilla/5.0 (X11; Ubuntu; Linux i686; rv:56.0) Gecko/20100101 Firefox/56.0",
+					CURLOPT_HTTPHEADER	=> [
+						"Accept: video/webm,video/ogg,video/*;q=0.9,application/ogg;q=0.7,audio/*;q=0.6,*/*;q=0.5"
+					]
+				]
+			);
+			$handle = fopen($this->videoFile, "w");
+			flock($handle, LOCK_EX);
+			$data = fwrite($handle, $ch->exec());
+			fflush($handle);
+			fclose($handle);
+			if ($data > 100) {
+				return WHATANIME_VIDEO_URL."/".$videoFile;
+			} else {
+				unlink($videoFile);
+				return false;
+			}
 		}
 	}
 
