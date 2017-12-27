@@ -1,0 +1,15 @@
+{
+    "name": "ammarfaizi2/whatanime",
+    "type": "library",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Ammar Faizi",
+            "email": "ammarfaizi2@gmail.com"
+        }
+    ],
+    "minimum-stability": "stable",
+    "require": {
+        "ammarfaizi2/php-curl": "^0.0.2"
+    }
+}
