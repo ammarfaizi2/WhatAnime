@@ -142,8 +142,6 @@ final class WhatAnime
 			$this->me = json_decode(file_get_contents($this->cacheFile), true);
 		}
 
-		var_dump($this->me);
-
 		return is_array($this->me) ? $this->me : [];
 	}
 
@@ -152,17 +150,20 @@ final class WhatAnime
 	 */
 	public function getFirst()
 	{
-		if (!$this->isCached()) {
+		if ($this->isCached()) {
+			$cache = $this->getCache();
+			if (isset($cache['docs'][0])) {
+				$this->generateVideoUrl($cache['docs'][0]);
+				return $cache['docs'][0];
+			}
+		} else {
 			$this->onlineSearch();
+			$cache = $this->getCache();
+			if (isset($cache['docs'][0])) {
+				$this->generateVideoUrl($cache['docs'][0]);
+				return $cache['docs'][0];
+			}
 		}
-
-		$cache = $this->getCache();
-
-		if (isset($cache['docs'][0])) {
-			$this->generateVideoUrl($cache['docs'][0]);
-			return $cache['docs'][0];
-		}
-
 		return false;
 	}
 
@@ -173,9 +174,7 @@ final class WhatAnime
 	private function generateVideoUrl(array $d): void
 	{
 		$this->d = $d;
-		$d["season"] = isset($d["season"]) ? $d["season"] : "";
-		$d["anime"] = isset($d["anime"]) ? $d["anime"] : "";
-		$this->videoUrl = "https://trace.moe/{$d['season']}/{$d['anime']}/{$d['file']}?start={$d['start']}&end={$d['end']}&token={$d['token']}";
+		$this->videoUrl = "https://trace.moe/{$d["anilist_id"]}/{$d["file"]}?start={$d['start']}&end={$d['end']}&token={$d['token']}";
 	}
 
 	/**
@@ -183,45 +182,46 @@ final class WhatAnime
 	 */
 	public function getVideo()
 	{
-		// if (! defined("WHATANIME_VIDEO_URL")) {
-		// 	throw new Exception("WHATANIME_VIDEO_URL must be defined when invoked getVideo method.", 1);
-		// }
-		// is_dir(WHATANIME_DIR."/video") or mkdir(WHATANIME_DIR."/video");
-		// if (! is_dir(WHATANIME_DIR."/video")) {
-		// 	throw new Exception("Cannot create directory ".WHATANIME_DIR."/video", 1);
-		// }
-		// $extension = explode(".", $this->d['file']);
-		// $this->videoFile = WHATANIME_DIR."/video/".($videoFile = $this->hash.".".strtolower($extension[count($extension) - 1]));
-		// unset($this->file);
+		if (! defined("WHATANIME_VIDEO_URL")) {
+			throw new Exception("WHATANIME_VIDEO_URL must be defined when invoked getVideo method.", 1);
+		}
+		is_dir(WHATANIME_DIR."/video") or mkdir(WHATANIME_DIR."/video");
+		if (! is_dir(WHATANIME_DIR."/video")) {
+			throw new Exception("Cannot create directory ".WHATANIME_DIR."/video", 1);
+		}
+		$extension = explode(".", $this->d['file']);
+		$this->videoFile = WHATANIME_DIR."/video/".($videoFile = $this->hash.".".strtolower($extension[count($extension) - 1]));
+		unset($this->file);
 
-		// if (file_exists($this->videoFile)) {
-		// 	return WHATANIME_VIDEO_URL."/".$videoFile;
-		// } else {
-		// 	$ch = new Curl($this->videoUrl);
-		// 	$ch->setOpt(
-		// 		[
-		//			CURLOPT_RETURNTRANSFER => true,
-		// 			CURLOPT_COOKIEJAR	=> $this->cookieFile,
-		// 			CURLOPT_COOKIEFILE	=> $this->cookieFile,
-		// 			CURLOPT_USERAGENT	=> "Mozilla/5.0 (X11; Ubuntu; Linux i686; rv:56.0) Gecko/20100101 Firefox/56.0",
-		// 			CURLOPT_HTTPHEADER	=> [
-		// 				"Accept: video/webm,video/ogg,video/*;q=0.9,application/ogg;q=0.7,audio/*;q=0.6,*/*;q=0.5"
-		// 			],
-		// 			CURLOPT_REFERER		=> "https://trace.moe/"
-		// 		]
-		// 	);
-		// 	$handle = fopen($this->videoFile, "w");
-		// 	flock($handle, LOCK_EX);
-		// 	$data = fwrite($handle, $ch->exec());
-		// 	fflush($handle);
-		// 	fclose($handle);
-		// 	if ($data > 100) {
-		// 		return WHATANIME_VIDEO_URL."/".$videoFile;
-		// 	} else {
-		// 		unlink($videoFile);
-		// 		return false;
-		// 	}
-		// }
+		if (file_exists($this->videoFile)) {
+			return WHATANIME_VIDEO_URL."/".$videoFile;
+		} else {
+			$ch = curl_init($this->videoUrl);
+			curl_setopt_array($ch,
+				[
+					CURLOPT_RETURNTRANSFER => true,
+					CURLOPT_COOKIEJAR	=> $this->cookieFile,
+					CURLOPT_COOKIEFILE	=> $this->cookieFile,
+					CURLOPT_USERAGENT	=> "Mozilla/5.0 (X11; Ubuntu; Linux i686; rv:56.0) Gecko/20100101 Firefox/56.0",
+					CURLOPT_HTTPHEADER	=> [
+						"Accept: video/webm,video/ogg,video/*;q=0.9,application/ogg;q=0.7,audio/*;q=0.6,*/*;q=0.5"
+					],
+					CURLOPT_REFERER		=> "https://trace.moe/"
+				]
+			);
+			$handle = fopen($this->videoFile, "w");
+			flock($handle, LOCK_EX);
+			$data = fwrite($handle, curl_exec($ch));
+			curl_close($ch);
+			fflush($handle);
+			fclose($handle);
+			if ($data > 100) {
+				return WHATANIME_VIDEO_URL."/".$videoFile;
+			} else {
+				unlink($videoFile);
+				return false;
+			}
+		}
 	}
 
 	/**
